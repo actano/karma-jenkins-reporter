@@ -4,13 +4,16 @@ var fs = require('fs');
 var builder = require('xmlbuilder');
 
 
-var JUnitReporter = function(baseReporterDecorator, config, logger, helper, formatError) {
-  var log = logger.create('reporter.junit');
-  var reporterConfig = config.junitReporter || {};
+var JenkinsReporter = function(baseReporterDecorator, config, logger, helper, formatError) {
+  var log = logger.create('reporter.jenkins');
+  var reporterConfig = config.jenkinsReporter || {};
   var pkgName = reporterConfig.suite || '';
+  var featurePath = process.env.REPORT_FILE;
   var outputFile = helper.normalizeWinPath(path.resolve(config.basePath, reporterConfig.outputFile
       || 'test-results.xml'));
-
+  if (featurePath != null) {
+    outputFile = path.join(process.env.PREFIX || '', featurePath);
+  }
   var xml;
   var suites;
   var pendingFileWritings = 0;
@@ -26,7 +29,12 @@ var JUnitReporter = function(baseReporterDecorator, config, logger, helper, form
   var initliazeXmlForBrowser = function(browser) {
     var timestamp = (new Date()).toISOString().substr(0, 19);
     var suite = suites[browser.id] = xml.ele('testsuite', {
-      name: browser.name, 'package': pkgName, timestamp: timestamp, id: 0, hostname: os.hostname()
+      name: browser.name, 
+      'package': pkgName, 
+      timestamp: timestamp, 
+      id: 0, 
+      hostname: os.hostname(),
+      make_target: process.env.MAKE_TARGETT
     });
     suite.ele('properties').ele('property', {name: 'browser.fullName', value: browser.fullName});
   };
@@ -48,7 +56,7 @@ var JUnitReporter = function(baseReporterDecorator, config, logger, helper, form
 
     if (!suite) {
       // This browser did not signal `onBrowserStart`. That happens
-      // if the browser timed out during the start phase.
+      // if the browser timed out duging the start phase.
       return;
     }
 
@@ -70,9 +78,9 @@ var JUnitReporter = function(baseReporterDecorator, config, logger, helper, form
     helper.mkdirIfNotExists(path.dirname(outputFile), function() {
       fs.writeFile(outputFile, xmlToOutput.end({pretty: true}), function(err) {
         if (err) {
-          log.warn('Cannot write JUnit xml\n\t' + err.message);
+          log.warn('Cannot write xml\n\t' + err.message);
         } else {
-          log.debug('JUnit results written to "%s".', outputFile);
+          log.debug('Xml results written to "%s".', outputFile);
         }
 
         if (!--pendingFileWritings) {
@@ -86,9 +94,14 @@ var JUnitReporter = function(baseReporterDecorator, config, logger, helper, form
   };
 
   this.specSuccess = this.specSkipped = this.specFailure = function(browser, result) {
+    var classnameArray = path.dirname(featurePath).split('/');
+    if(reporterConfig.classnameSuffix != null) classnameArray.push(reporterConfig.classnameSuffix);
+
     var spec = suites[browser.id].ele('testcase', {
       name: result.description, time: ((result.time || 0) / 1000),
-      classname: (pkgName ? pkgName + ' ' : '') + browser.name + '.' + result.suite.join(' ').replace(/\./g, '_')
+      classname: classnameArray.join('.'),
+      'package': (pkgName ? pkgName + ' ' : '') + browser.name,
+      parentSuites: result.suite.join('|')
     });
 
     if (result.skipped) {
@@ -112,9 +125,9 @@ var JUnitReporter = function(baseReporterDecorator, config, logger, helper, form
   };
 };
 
-JUnitReporter.$inject = ['baseReporterDecorator', 'config', 'logger', 'helper', 'formatError'];
+JenkinsReporter.$inject = ['baseReporterDecorator', 'config', 'logger', 'helper', 'formatError'];
 
 // PUBLISH DI MODULE
 module.exports = {
-  'reporter:junit': ['type', JUnitReporter]
+  'reporter:jenkins': ['type', JenkinsReporter]
 };
