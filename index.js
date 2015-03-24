@@ -34,7 +34,7 @@ var JenkinsReporter = function(baseReporterDecorator, config, logger, helper, fo
       timestamp: timestamp, 
       id: 0, 
       hostname: os.hostname(),
-      make_target: process.env.MAKE_TARGETT
+      make_target: process.env.MAKE_TARGET
     });
     suite.ele('properties').ele('property', {name: 'browser.fullName', value: browser.fullName});
   };
