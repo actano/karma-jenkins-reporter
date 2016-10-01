@@ -1,5 +1,3 @@
-# /!\ DEPRECATED
-
 # karma-jenkins-reporter
 
 > Reporter for the JUnit XML format for Jenkins.
